@@ -1,4 +1,4 @@
-// src/pages/video-sitemap.xml.ts
+// src/pages/image-sitemap.xml.ts
 import type { APIRoute } from 'astro';
 import { slugify } from '../utils/slugify';
 import { getAllVideos, type VideoData } from '../utils/data';
@@ -10,82 +10,70 @@ export const GET: APIRoute = async ({ site }) => {
 
   let allVideos: VideoData[] = [];
   try {
-    allVideos = await getAllVideos(); // Mengambil data yang sudah diproses & di-cache
+    allVideos = await getAllVideos();
   } catch (error) {
-    console.error("Gagal memuat data video untuk video-sitemap:", error);
-    return new Response('Gagal memuat data video untuk sitemap.', { status: 500 });
+    console.error("Gagal memuat data video untuk image-sitemap:", error);
+    return new Response('Gagal memuat data video untuk sitemap gambar.', { status: 500 });
   }
 
   const baseUrl = site.href.endsWith('/') ? site.href.slice(0, -1) : site.href;
+  const currentTimestampForLogo = new Date().toISOString();
 
-  let videoEntries: string[] = [];
+  let imageEntries: string[] = [];
 
+  // --- Tambahkan logo situs Anda (dengan escaping dan URL absolut) ---
+  const logoUrl = `${baseUrl}/logo.png`;
+  imageEntries.push(`
+    <url>
+      <loc>${baseUrl}/</loc>
+      <lastmod>${currentTimestampForLogo}</lastmod>
+      <image:image>
+        <image:loc>${logoUrl}</image:loc>
+        <image:caption>${escapeXml(`Logo ${site.hostname}`)}</image:caption>
+        <image:title>${escapeXml(`Logo ${site.hostname}`)}</image:title>
+      </image:image>
+    </url>
+  `);
+
+  // --- Loop melalui semua video untuk menambahkan thumbnail mereka ---
   allVideos.forEach(video => {
-    if (!video.id) {
-        console.warn(`Melewatkan video tanpa ID untuk sitemap: ${video.title || 'Unknown Title'}`);
+    if (!video.id || !video.title) {
+        console.warn(`Melewatkan video untuk sitemap gambar karena ID atau judul hilang: ${video.id || 'N/A'}`);
         return;
     }
 
     const videoDetailUrl = `${baseUrl}/${slugify(video.title)}-${video.id}/`;
     const thumbnailUrl = video.thumbnail;
-    const embedUrl = video.embedUrl;
 
-    const absoluteThumbnailUrl = thumbnailUrl && (thumbnailUrl.startsWith('http://') || thumbnailUrl.startsWith('https://')) ? thumbnailUrl : `${baseUrl}${thumbnailUrl}`;
-    const absoluteEmbedUrl = embedUrl && (embedUrl.startsWith('http://') || embedUrl.startsWith('https://')) ? embedUrl : `${baseUrl}${embedUrl}`;
+    const absoluteThumbnailUrl = thumbnailUrl && (thumbnailUrl.startsWith('http://') || thumbnailUrl.startsWith('https://'))
+        ? thumbnailUrl
+        : `${baseUrl}${thumbnailUrl}`;
 
-    // Gunakan duration yang sudah ada di video object
-    // Jika Anda ingin fallback ke default, pastikan hanya di sini
-    const duration = video.duration && typeof video.duration === 'number' ? Math.round(video.duration) : 126; 
-    
-    // Gunakan video.datePublished yang SUDAH DIPROSES oleh getAllVideos()
-    const videoPublishedDate = video.datePublished;
-    // Gunakan video.dateModified yang SUDAH DIPROSES oleh getAllVideos()
-    const videoModifiedDate = video.dateModified;
+    if (absoluteThumbnailUrl && videoDetailUrl) {
+      // Gunakan video.dateModified yang SUDAH DIPROSES oleh getAllVideos()
+      const videoLastMod = video.dateModified;
 
-    if (video.title && video.description && absoluteThumbnailUrl && absoluteEmbedUrl) {
-      let tagsHtml = '';
-      if (video.tags) {
-        let tagsToProcess: string[] = [];
-        if (Array.isArray(video.tags)) {
-          tagsToProcess = video.tags;
-        } else if (typeof video.tags === 'string') {
-          tagsToProcess = video.tags.split(',').map(tag => tag.trim());
-        }
-
-        tagsHtml = tagsToProcess
-          .filter(tag => tag.length > 0)
-          .map(tag => `<video:tag>${escapeXml(tag)}</video:tag>`)
-          .join('\n            ');
-      }
-
-      videoEntries.push(`
+      imageEntries.push(`
         <url>
           <loc>${videoDetailUrl}</loc>
-          <lastmod>${videoModifiedDate}</lastmod> // <--- Gunakan videoModifiedDate
-          <changefreq>weekly</changefreq>
-          <priority>0.8</priority>
-          <video:video>
-            <video:thumbnail_loc>${absoluteThumbnailUrl}</video:thumbnail_loc>
-            <video:title>${escapeXml(video.title)}</video:title>
-            <video:description>${escapeXml(video.description)}</video:description>
-            <video:content_loc>${absoluteEmbedUrl}</video:content_loc>
-            <video:duration>${duration}</video:duration>
-            <video:publication_date>${videoPublishedDate}</video:publication_date>
-            ${tagsHtml}
-            ${video.category ? `<video:category>${escapeXml(video.category)}</video:category>` : ''}
-          </video:video>
+          <lastmod>${videoLastMod}</lastmod>
+          <image:image>
+            <image:loc>${absoluteThumbnailUrl}</image:loc>
+            <image:caption>${escapeXml(video.description || video.title)}</image:caption>
+            <image:title>${escapeXml(video.title)}</image:title>
+          </image:image>
         </url>
       `);
     } else {
-      console.warn(`Melewatkan video untuk sitemap karena data wajib hilang: ID ${video.id || 'N/A'}`);
+        console.warn(`Melewatkan thumbnail video untuk sitemap gambar karena URL tidak valid atau hilang: ID ${video.id}`);
     }
   });
 
   const sitemapContent = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
-  ${videoEntries.join('\n  ')}
-</urlset>`;
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  ${imageEntries.join('\n  ')}
+</urlset>`; // Perhatikan penggunaan `\n  ` untuk indentasi yang bersih dan `imageEntries.join()`
 
   return new Response(sitemapContent, {
     headers: {
@@ -94,6 +82,7 @@ export const GET: APIRoute = async ({ site }) => {
   });
 };
 
+// Helper function untuk melarikan (escape) entitas XML
 function escapeXml(unsafe: string | null | undefined): string {
   if (!unsafe) return '';
   return unsafe.replace(/[<>&'"]/g, function (c) {

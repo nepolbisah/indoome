@@ -10,16 +10,14 @@ export interface VideoData {
   thumbnail: string;
   thumbnailWidth: number;
   thumbnailHeight: number;
-  datePublished?: string; // Tanggal publikasi (bisa acak jika kosong)
-  dateModified?: string;  // Tanggal modifikasi (konsisten dengan waktu build)
+  datePublished?: string;
+  dateModified?: string;
   embedUrl: string;
   tags: string | string[];
   previewUrl?: string;
   duration?: number;
 }
 
-// Fungsi helper untuk menghasilkan tanggal acak antara dua tanggal ISO string
-// Batas awal akan diambil dari PUBLIC_SITE_PUBLISHED_DATE atau default
 function randomDateBetween(start: string, end: string): string {
     const startDate = new Date(start);
     const endDate = new Date(end);
@@ -32,7 +30,6 @@ function randomDateBetween(start: string, end: string): string {
     return new Date(randomMillis).toISOString();
 }
 
-// Fungsi untuk menghasilkan tag dari title (tetap seperti sebelumnya)
 function generateTagsFromTitle(title: string, currentTags: string | string[] | undefined, numberOfTags = 3): string[] {
     let existingTags: string[] = [];
     if (currentTags) {
@@ -67,34 +64,34 @@ function generateTagsFromTitle(title: string, currentTags: string | string[] | u
 }
 
 let cachedProcessedVideos: VideoData[] | null = null;
-let buildProcessStartTime: string | null = null;
+
+// --- UBAH DI SINI! Inisialisasi buildProcessStartTime di level teratas modul
+// Ini akan dieksekusi HANYA SEKALI saat modul ini pertama kali dimuat.
+const buildProcessStartTime: string = new Date().toISOString(); 
+// ---
 
 export async function getAllVideos(): Promise<VideoData[]> {
   if (cachedProcessedVideos) {
     return cachedProcessedVideos;
   }
 
-  // Waktu ini akan menjadi dasar konsistensi untuk dateModified dan batas atas random datePublished
-  buildProcessStartTime = new Date().toISOString();
-  
-  // Batas bawah untuk random datePublished, diambil dari .env atau buildProcessStartTime
-  // Ini akan menjadi konsisten per build
+  // datePublishedRandomRangeStart juga bisa didefinisikan di sini
+  // untuk memastikan ia juga statis per build
   const datePublishedRandomRangeStart = import.meta.env.PUBLIC_SITE_PUBLISHED_DATE || buildProcessStartTime;
 
   const processedVideos: VideoData[] = (rawAllVideos as VideoData[]).map(video => {
     let finalDatePublished = video.datePublished;
     let finalDateModified = video.dateModified;
 
-    // Logika datePublished:
-    // Jika tidak ada di data mentah, HANYA di sini generate secara acak
+    // Logika datePublished: acak jika kosong, dalam rentang PUBLIC_SITE_PUBLISHED_DATE dan buildProcessStartTime
     if (!finalDatePublished) {
-      finalDatePublished = randomDateBetween(datePublishedRandomRangeStart, buildProcessStartTime!);
+      finalDatePublished = randomDateBetween(datePublishedRandomRangeStart, buildProcessStartTime);
     }
 
     // Logika dateModified: Selalu set ke waktu build yang konsisten
-    finalDateModified = buildProcessStartTime!;
+    finalDateModified = buildProcessStartTime;
 
-    // Logika tags (tetap seperti sebelumnya)
+    // Logika tags
     let finalTags: string | string[];
     if (!video.tags || (Array.isArray(video.tags) && video.tags.length === 0) || (typeof video.tags === 'string' && video.tags.trim() === '')) {
         finalTags = generateTagsFromTitle(video.title, undefined, 3);

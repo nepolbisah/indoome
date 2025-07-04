@@ -1,19 +1,29 @@
----
 // src/pages/[slug].astro
 import Layout from '../layouts/BaseLayout.astro';
 import VideoCard from '../components/VideoCard.astro';
-import { slugify } from '../utils/slugify.ts'; // Pastikan ekstensi .ts
-import type { VideoData } from '../utils/data.ts'; // Pastikan ekstensi .ts
+import { slugify } from '../utils/slugify.ts';
+import type { VideoData } from '../utils/data.ts';
 
 // Import allVideos directly from the pre-processed file
-import allVideosData from '../data/allVideos.ts'; // Menggunakan nama berbeda agar tidak konflik dengan props
+import allVideosData from '../data/allVideos.ts';
 
 export const prerender = true;
+
+// --- Helper function untuk menghasilkan tanggal acak (disamakan dengan sitemap) ---
+function randomDateBetween(start: string, end: string): string {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const startMillis = startDate.getTime();
+    const endMillis = endDate.getTime();
+    if (startMillis > endMillis) { return end; }
+    const randomMillis = startMillis + Math.random() * (endMillis - startMillis);
+    return new Date(randomMillis).toISOString();
+}
 
 // Function to convert seconds to ISO 8601 duration format
 function convertSecondsToISO8601(totalSeconds: number): string {
   if (totalSeconds < 0 || isNaN(totalSeconds)) {
-    return 'PT0S'; // Handle negative or invalid durations
+    return 'PT0S';
   }
 
   const hours = Math.floor(totalSeconds / 3600);
@@ -27,30 +37,39 @@ function convertSecondsToISO8601(totalSeconds: number): string {
   if (minutes > 0) {
     isoString += `${minutes}M`;
   }
-  // Always include seconds if there are any, or if duration is 0
   if (seconds > 0 || (hours === 0 && minutes === 0)) {
     isoString += `${seconds}S`;
   }
-
-  // Fallback for cases where duration is genuinely 0
   if (isoString === 'PT') {
     return 'PT0S';
   }
-
   return isoString;
 }
 
 
 export async function getStaticPaths() {
-  // Gunakan allVideosData dari import di sini
-  return allVideosData.map(video => ({
+  const currentTime = new Date().toISOString();
+  const defaultSitePublishedDate = import.meta.env.PUBLIC_SITE_PUBLISHED_DATE || currentTime;
+
+  // Modifikasi allVideosData untuk menambahkan 'videoDeterminedDate' ke setiap video
+  const processedVideos = allVideosData.map(video => {
+    // Jika video.datePublished ada, gunakan itu. Jika tidak, hasilkan tanggal acak.
+    const determinedDate = video.datePublished || randomDateBetween(defaultSitePublishedDate, currentTime);
+    return { ...video, videoDeterminedDate: determinedDate }; // Tambahkan properti baru
+  });
+
+  return processedVideos.map(video => ({
     params: { slug: `${slugify(video.title)}-${video.id}` },
-    props: { video, allVideos: allVideosData }, // Teruskan allVideosData sebagai prop allVideos
+    // Teruskan video dengan videoDeterminedDate, dan semua video yang sudah diproses
+    props: { video, allVideos: processedVideos },
   }));
 }
 
 // Ambil props yang dibutuhkan
-const { video, allVideos } = Astro.props; // allVideos sekarang datang dari props
+// Tambahkan videoDeterminedDate ke tipe VideoData untuk props
+type VideoDataWithDeterminedDate = VideoData & { videoDeterminedDate?: string };
+
+const { video, allVideos } = Astro.props as { video: VideoDataWithDeterminedDate, allVideos: VideoDataWithDeterminedDate[] };
 
 // Konversi durasi video
 const videoDurationISO = convertSecondsToISO8601(video.duration);
@@ -68,11 +87,11 @@ const usedVideoTitles = new Set<string>();
 
 // Tambahkan video saat ini ke set agar tidak muncul di related/random
 usedVideoIds.add(video.id);
-usedVideoTitles.add(video.title.toLowerCase().trim()); // Pastikan trim untuk konsistensi
+usedVideoTitles.add(video.title.toLowerCase().trim());
 
 // --- Logika Video Terkait ---
 const numberOfRelatedVideos = 14;
-let relatedVideos: VideoData[] = [];
+let relatedVideos: VideoDataWithDeterminedDate[] = []; // Gunakan tipe yang diperluas
 
 const currentVideoTitleKeywords = video.title
   .toLowerCase()
@@ -106,7 +125,7 @@ const scoredCandidates = candidateVideosForRelated.map(v => {
 // Urutkan berdasarkan skor, lalu acak untuk skor yang sama
 scoredCandidates.sort((a, b) => {
   if (b.score === a.score) {
-    return 0.5 - Math.random(); // Acak untuk skor yang sama
+    return 0.5 - Math.random();
   }
   return b.score - a.score;
 });
@@ -117,24 +136,22 @@ for (const scoredV of scoredCandidates) {
     break;
   }
   const lowerCaseTitle = scoredV.video.title.toLowerCase().trim();
-  // Double check, meskipun sudah difilter di awal, ini sebagai pengaman
   if (!usedVideoIds.has(scoredV.video.id) && !usedVideoTitles.has(lowerCaseTitle)) {
     relatedVideos.push(scoredV.video);
-    usedVideoIds.add(scoredV.video.id); // Tambahkan ke set setelah ditambahkan
-    usedVideoTitles.add(lowerCaseTitle); // Tambahkan ke set setelah ditambahkan
+    usedVideoIds.add(scoredV.video.id);
+    usedVideoTitles.add(lowerCaseTitle);
   }
 }
 
 // Isi sisa slot jika kurang dari jumlah yang diinginkan dengan video acak
 if (relatedVideos.length < numberOfRelatedVideos) {
-  const remainingSlots = numberOfRelatedVideos - relatedVideos.length;
+  const remainingSlots = numberOfRandomVideos - relatedVideos.length; // Perbaikan: gunakan numberOfRelatedVideos
   const otherVideosForRelatedFill = allVideos.filter(v =>
     !usedVideoIds.has(v.id) &&
     !usedVideoTitles.has(v.title.toLowerCase().trim())
   );
   const shuffledOthersForRelatedFill = otherVideosForRelatedFill.sort(() => 0.5 - Math.random());
   
-  // Tambahkan video ke relatedVideos dan perbarui set
   shuffledOthersForRelatedFill.slice(0, remainingSlots).forEach(v => {
     if (!usedVideoIds.has(v.id) && !usedVideoTitles.has(v.title.toLowerCase().trim())) {
         relatedVideos.push(v);
@@ -157,7 +174,7 @@ const videosForRandomSelection = allVideos.filter(v =>
 
 const randomVideos = videosForRandomSelection
   .sort(() => 0.5 - Math.random()) // Acak
-  .slice(0, numberOfRandomVideos); // Ambil sejumlah yang diinginkan
+  .slice(0, numberOfRandomVideos);
 // --- Akhir Logika Video Acak ---
 
 
@@ -202,8 +219,8 @@ const breadcrumbs = [
 // --- Akhir Breadcrumbs ---
 
 // --- Metadata dan Schema.org ---
-const datePublished = video.datePublished || terbit;
-const dateModified = video.dateModified || new Date().toISOString();
+// datePublished dan dateModified akan menggunakan video.videoDeterminedDate
+const schemaDateForVideo = video.videoDeterminedDate || terbit; 
 
 const pageCanonicalUrl = new URL(Astro.url.pathname, url).href;
 
@@ -222,8 +239,8 @@ const schemaWebPage = {
       "url": `${url}/logo.png`
     }
   },
-  "datePublished": datePublished,
-  "dateModified": dateModified
+  "datePublished": schemaDateForVideo, // Menggunakan videoDeterminedDate
+  "dateModified": schemaDateForVideo // Menggunakan videoDeterminedDate
 };
 
 const schemaVideoObject = {
@@ -231,7 +248,7 @@ const schemaVideoObject = {
   "@type": "VideoObject",
   "name": video.title,
   "description": `${video.description} di ${nama} ${desk}`,
-  "uploadDate": datePublished,
+  "uploadDate": schemaDateForVideo, // uploadDate adalah tanggal publikasi/pembuatan (menggunakan videoDeterminedDate)
   "embedUrl": video.embedUrl,
   "thumbnailUrl": `${url}${video.thumbnail}`,
   "duration": videoDurationISO,

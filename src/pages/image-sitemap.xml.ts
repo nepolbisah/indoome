@@ -11,6 +11,9 @@ export const GET: APIRoute = async ({ site }) => {
   let allVideos: VideoData[] = [];
   try {
     allVideos = await getAllVideos(); // Mengambil data yang sudah diproses & di-cache
+    // Tambahkan log untuk memastikan data diproses dengan benar di sini
+    console.log("[Image Sitemap] getAllVideos returned data. First video dateModified:", allVideos[0]?.dateModified);
+
   } catch (error) {
     console.error("Gagal memuat data video untuk image-sitemap:", error);
     return new Response('Gagal memuat data video untuk sitemap gambar.', { status: 500 });
@@ -46,10 +49,14 @@ export const GET: APIRoute = async ({ site }) => {
         ? thumbnailUrl
         : `${baseUrl}${thumbnailUrl}`;
 
-    if (absoluteThumbnailUrl && videoDetailUrl) {
-      // Gunakan video.dateModified yang SUDAH DIPROSES oleh getAllVideos()
-      const videoLastMod = video.dateModified; // Ini sudah diatur konsisten di data.ts!
+    // --- UBAH DI SINI: Tambahkan fallback yang lebih kuat ---
+    // Gunakan video.dateModified, jika kosong, fallback ke waktu build yang baru dibuat di sini
+    const videoLastMod = video.dateModified || new Date().toISOString(); 
+    // Tambahkan log untuk setiap video
+    // console.log(`[Image Sitemap] Video ID ${video.id} dateModified (dari objek): ${video.dateModified}. Digunakan untuk lastmod: ${videoLastMod}`);
+    // --- AKHIR UBAH ---
 
+    if (absoluteThumbnailUrl && videoDetailUrl) {
       imageEntries.push(`
         <url>
           <loc>${videoDetailUrl}</loc>

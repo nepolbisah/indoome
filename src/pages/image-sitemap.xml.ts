@@ -3,36 +3,26 @@ import type { APIRoute } from 'astro';
 import { slugify } from '../utils/slugify';
 import { getAllVideos, type VideoData } from '../utils/data';
 
-// Perluas tipe VideoData untuk menyertakan properti baru untuk tanggal yang ditentukan
-type VideoDataWithDeterminedDate = VideoData & { videoDeterminedDate?: string };
-
 export const GET: APIRoute = async ({ site }) => {
   if (!site) {
     return new Response('Site URL is not defined in Astro config.', { status: 500 });
   }
 
-  const currentTime = new Date().toISOString(); // Waktu saat ini untuk lastmod (kecuali video)
-  const defaultSitePublishedDate = import.meta.env.PUBLIC_SITE_PUBLISHED_DATE || currentTime;
+  const currentTime = new Date().toISOString(); // Waktu saat ini, digunakan untuk semua lastmod
 
-  let allVideos: VideoDataWithDeterminedDate[] = [];
+  let allVideos: VideoData[] = [];
   try {
     allVideos = await getAllVideos();
-    // Hitung dan tambahkan properti 'videoDeterminedDate' ke setiap objek video
-    // Penting: Logika ini harus sama persis dengan di sitemap_general.xml.ts
-    allVideos = allVideos.map(video => {
-      const determinedDate = video.datePublished || randomDateBetween(defaultSitePublishedDate, currentTime);
-      return { ...video, videoDeterminedDate: determinedDate };
-    });
   } catch (error) {
-    console.error("Gagal memuat data video untuk image-sitemap:", error);
-    return new Response('Gagal memuat data video untuk sitemap gambar.', { status: 500 });
+    console.error("Failed to load video data for image-sitemap:", error);
+    return new Response('Failed to load video data for image sitemap.', { status: 500 });
   }
 
   const baseUrl = site.href.endsWith('/') ? site.href.slice(0, -1) : site.href;
 
   let imageEntries: string[] = [];
 
-  // --- Tambahkan logo situs Anda (lastmod menggunakan currentTime) ---
+  // --- Add site logo (lastmod uses currentTime) ---
   imageEntries.push(`
     <url>
       <loc>${baseUrl}/</loc>
@@ -46,8 +36,8 @@ export const GET: APIRoute = async ({ site }) => {
   `);
 
   allVideos.forEach(video => {
-    if (!video.id || !video.title || !video.videoDeterminedDate) {
-        console.warn(`Melewatkan video untuk sitemap gambar karena ID, judul, atau videoDeterminedDate hilang: ${video.id || 'N/A'}`);
+    if (!video.id || !video.title) {
+        console.warn(`Skipping video for image sitemap due to missing ID or title: ${video.id || 'N/A'}`);
         return;
     }
 
@@ -59,11 +49,11 @@ export const GET: APIRoute = async ({ site }) => {
         : `${baseUrl}${thumbnailUrl}`;
 
     if (absoluteThumbnailUrl && videoDetailUrl) {
-      // lastmod untuk entri gambar video menggunakan videoDeterminedDate
+      // lastmod for video image entries uses currentTime
       imageEntries.push(`
         <url>
           <loc>${videoDetailUrl}</loc>
-          <lastmod>${video.videoDeterminedDate}</lastmod> 
+          <lastmod>${currentTime}</lastmod> 
           <image:image>
             <image:loc>${absoluteThumbnailUrl}</image:loc>
             <image:caption>${escapeXml(video.description || video.title)}</image:caption>
@@ -72,7 +62,7 @@ export const GET: APIRoute = async ({ site }) => {
         </url>
       `);
     } else {
-        console.warn(`Melewatkan thumbnail video untuk sitemap gambar karena URL tidak valid atau hilang: ID ${video.id}`);
+        console.warn(`Skipping video thumbnail for image sitemap due to invalid or missing URL: ID ${video.id}`);
     }
   });
 
@@ -89,16 +79,7 @@ export const GET: APIRoute = async ({ site }) => {
   });
 };
 
-// --- Helper function untuk menghasilkan tanggal acak ---
-function randomDateBetween(start: string, end: string): string {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const startMillis = startDate.getTime();
-    const endMillis = endDate.getTime();
-    if (startMillis > endMillis) { return end; }
-    const randomMillis = startMillis + Math.random() * (endMillis - startMillis);
-    return new Date(randomMillis).toISOString();
-}
+// --- Remove randomDateBetween function ---
 
 function escapeXml(unsafe: string | null | undefined): string {
   if (!unsafe) return '';

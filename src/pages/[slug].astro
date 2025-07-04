@@ -196,7 +196,7 @@ const breadcrumbs = [
 // datePublished sudah dipastikan ada dari getAllVideos
 const schemaDatePublished = video.datePublished; 
 // dateModified akan selalu currentTime
-const schemaDateModified = new Date().toISOString(); 
+const schemaDateModified = video.dateModified
 
 const pageCanonicalUrl = new URL(Astro.url.pathname, url).href;
 

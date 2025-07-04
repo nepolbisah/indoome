@@ -44,7 +44,7 @@ export const GET: APIRoute = async ({ site }) => {
         return; // Lewati video ini jika data utamanya tidak lengkap
     }
 
-    const videoDetailUrl = `${baseUrl}/video/${video.id}/${slugify(video.title)}`; // URL halaman video
+    const videoDetailUrl = `${baseUrl}/${slugify(video.title)}-${video.id}/`;
     const thumbnailUrl = video.thumbnail; // URL gambar thumbnail video
 
     // Validasi dan pastikan thumbnailUrl adalah URL absolut

@@ -3,26 +3,25 @@ import type { APIRoute } from 'astro';
 import { slugify } from '../utils/slugify';
 import { getAllVideos, type VideoData } from '../utils/data';
 
-// Perluas tipe VideoData untuk menyertakan properti baru
-type VideoDataWithCalculatedLastMod = VideoData & { calculatedLastMod?: string };
+// Perluas tipe VideoData untuk menyertakan properti baru untuk tanggal yang ditentukan
+type VideoDataWithDeterminedDate = VideoData & { videoDeterminedDate?: string };
 
 export const GET: APIRoute = async ({ site }) => {
   if (!site) {
     return new Response('Site URL is not defined in Astro config.', { status: 500 });
   }
 
-  const currentTime = new Date().toISOString();
+  const currentTime = new Date().toISOString(); // Waktu saat ini untuk lastmod (kecuali video)
   const defaultSitePublishedDate = import.meta.env.PUBLIC_SITE_PUBLISHED_DATE || currentTime;
 
-  let allVideos: VideoDataWithCalculatedLastMod[] = [];
+  let allVideos: VideoDataWithDeterminedDate[] = [];
   try {
     allVideos = await getAllVideos();
-    // Hitung dan tambahkan properti 'calculatedLastMod' ke setiap objek video
+    // Hitung dan tambahkan properti 'videoDeterminedDate' ke setiap objek video
     // Penting: Logika ini harus sama persis dengan di sitemap_general.xml.ts
     allVideos = allVideos.map(video => {
-      const videoActualPublishedDate = video.datePublished || defaultSitePublishedDate;
-      const calculatedLastMod = video.dateModified || video.datePublished || randomDateBetween(videoActualPublishedDate, currentTime);
-      return { ...video, calculatedLastMod };
+      const determinedDate = video.datePublished || randomDateBetween(defaultSitePublishedDate, currentTime);
+      return { ...video, videoDeterminedDate: determinedDate };
     });
   } catch (error) {
     console.error("Gagal memuat data video untuk video-sitemap:", error);
@@ -34,8 +33,8 @@ export const GET: APIRoute = async ({ site }) => {
   let videoEntries: string[] = [];
 
   allVideos.forEach(video => {
-    if (!video.id || !video.calculatedLastMod) { // Pastikan calculatedLastMod ada
-        console.warn(`Melewatkan video tanpa ID atau calculatedLastMod untuk sitemap: ${video.title || 'Unknown Title'}`);
+    if (!video.id || !video.videoDeterminedDate) {
+        console.warn(`Melewatkan video tanpa ID atau videoDeterminedDate untuk sitemap: ${video.title || 'Unknown Title'}`);
         return;
     }
 
@@ -48,9 +47,6 @@ export const GET: APIRoute = async ({ site }) => {
 
     const duration = video.duration && typeof video.duration === 'number' ? Math.round(video.duration) : 126;
 
-    // datePublished: Prioritas utama adalah video.datePublished. Fallback ke defaultSitePublishedDate
-    const videoPublishedDate = video.datePublished || defaultSitePublishedDate;
-    
     if (video.title && video.description && absoluteThumbnailUrl && absoluteEmbedUrl) {
       let tagsHtml = '';
       if (video.tags) {
@@ -70,7 +66,7 @@ export const GET: APIRoute = async ({ site }) => {
       videoEntries.push(`
         <url>
           <loc>${videoDetailUrl}</loc>
-          <lastmod>${video.calculatedLastMod}</lastmod> <changefreq>weekly</changefreq>
+          <lastmod>${video.videoDeterminedDate}</lastmod> <changefreq>weekly</changefreq>
           <priority>0.8</priority>
           <video:video>
             <video:thumbnail_loc>${absoluteThumbnailUrl}</video:thumbnail_loc>
@@ -78,8 +74,7 @@ export const GET: APIRoute = async ({ site }) => {
             <video:description>${escapeXml(video.description)}</video:description>
             <video:content_loc>${absoluteEmbedUrl}</video:content_loc>
             <video:duration>${duration}</video:duration>
-            <video:publication_date>${videoPublishedDate}</video:publication_date>
-            ${tagsHtml}
+            <video:publication_date>${video.videoDeterminedDate}</video:publication_date> ${tagsHtml}
             ${video.category ? `<video:category>${escapeXml(video.category)}</video:category>` : ''}
           </video:video>
         </url>

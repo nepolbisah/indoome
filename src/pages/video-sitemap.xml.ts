@@ -8,12 +8,9 @@ export const GET: APIRoute = async ({ site }) => {
     return new Response('Site URL is not defined in Astro config.', { status: 500 });
   }
 
-  // --- Ambil PUBLIC_SITE_PUBLISHED_DATE dari environment ---
-  const defaultPublishedDate = import.meta.env.PUBLIC_SITE_PUBLISHED_DATE || new Date().toISOString();
-
   let allVideos: VideoData[] = [];
   try {
-    allVideos = await getAllVideos();
+    allVideos = await getAllVideos(); // Mengambil data yang sudah diproses & di-cache
   } catch (error) {
     console.error("Gagal memuat data video untuk video-sitemap:", error);
     return new Response('Gagal memuat data video untuk sitemap.', { status: 500 });
@@ -36,10 +33,14 @@ export const GET: APIRoute = async ({ site }) => {
     const absoluteThumbnailUrl = thumbnailUrl && (thumbnailUrl.startsWith('http://') || thumbnailUrl.startsWith('https://')) ? thumbnailUrl : `${baseUrl}${thumbnailUrl}`;
     const absoluteEmbedUrl = embedUrl && (embedUrl.startsWith('http://') || embedUrl.startsWith('https://')) ? embedUrl : `${baseUrl}${embedUrl}`;
 
-    const duration = video.duration && typeof video.duration === 'number' ? Math.round(video.duration) : 126;
-    // --- Gunakan defaultPublishedDate sebagai fallback untuk video.datePublished ---
-    const videoPublishedDate = video.datePublished || defaultPublishedDate;
-    const videoModifiedDate = video.dateModified || new Date().toISOString();
+    // Gunakan duration yang sudah ada di video object
+    // Jika Anda ingin fallback ke default, pastikan hanya di sini
+    const duration = video.duration && typeof video.duration === 'number' ? Math.round(video.duration) : 126; 
+    
+    // Gunakan video.datePublished yang SUDAH DIPROSES oleh getAllVideos()
+    const videoPublishedDate = video.datePublished;
+    // Gunakan video.dateModified yang SUDAH DIPROSES oleh getAllVideos()
+    const videoModifiedDate = video.dateModified;
 
     if (video.title && video.description && absoluteThumbnailUrl && absoluteEmbedUrl) {
       let tagsHtml = '';
@@ -60,7 +61,7 @@ export const GET: APIRoute = async ({ site }) => {
       videoEntries.push(`
         <url>
           <loc>${videoDetailUrl}</loc>
-          <lastmod>${new Date().toISOString()}</lastmod>
+          <lastmod>${videoModifiedDate}</lastmod> // <--- Gunakan videoModifiedDate
           <changefreq>weekly</changefreq>
           <priority>0.8</priority>
           <video:video>

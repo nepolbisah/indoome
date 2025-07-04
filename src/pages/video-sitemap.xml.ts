@@ -60,7 +60,7 @@ export const GET: APIRoute = async ({ site }) => {
       videoEntries.push(`
         <url>
           <loc>${videoDetailUrl}</loc>
-          <lastmod>${videoModifiedDate}</lastmod>
+          <lastmod>${new Date().toISOString()}</lastmod>
           <changefreq>weekly</changefreq>
           <priority>0.8</priority>
           <video:video>

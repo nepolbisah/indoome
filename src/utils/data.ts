@@ -1,3 +1,5 @@
+// src/utils/data.ts
+
 import rawAllVideos from '../data/allVideos';
 
 export interface VideoData {
@@ -8,14 +10,16 @@ export interface VideoData {
   thumbnail: string;
   thumbnailWidth: number;
   thumbnailHeight: number;
-  datePublished?: string;
-  dateModified?: string;
+  datePublished?: string; // Tanggal publikasi (bisa acak jika kosong)
+  dateModified?: string;  // Tanggal modifikasi (konsisten dengan waktu build)
   embedUrl: string;
   tags: string | string[];
   previewUrl?: string;
   duration?: number;
 }
 
+// Fungsi helper untuk menghasilkan tanggal acak antara dua tanggal ISO string
+// Batas awal akan diambil dari PUBLIC_SITE_PUBLISHED_DATE atau default
 function randomDateBetween(start: string, end: string): string {
     const startDate = new Date(start);
     const endDate = new Date(end);
@@ -28,6 +32,7 @@ function randomDateBetween(start: string, end: string): string {
     return new Date(randomMillis).toISOString();
 }
 
+// Fungsi untuk menghasilkan tag dari title (tetap seperti sebelumnya)
 function generateTagsFromTitle(title: string, currentTags: string | string[] | undefined, numberOfTags = 3): string[] {
     let existingTags: string[] = [];
     if (currentTags) {
@@ -44,7 +49,8 @@ function generateTagsFromTitle(title: string, currentTags: string | string[] | u
 
     const commonWords = new Set([
         'dan', 'di', 'yang', 'ini', 'itu', 'dengan', 'dari', 'untuk', 'pada', 'atau',
-        'adalah', 'sebagai', 'tidak', 'saya', 'ke', 'mereka'
+        'adalah', 'sebagai', 'tidak', 'saya', 'kami', 'mereka', 'video', 'film', 'movie',
+        'jepang', 'indo', 'bokep'
     ]);
 
     const cleanedWords = title
@@ -68,19 +74,27 @@ export async function getAllVideos(): Promise<VideoData[]> {
     return cachedProcessedVideos;
   }
 
+  // Waktu ini akan menjadi dasar konsistensi untuk dateModified dan batas atas random datePublished
   buildProcessStartTime = new Date().toISOString();
-  const defaultSitePublishedDate = import.meta.env.PUBLIC_SITE_PUBLISHED_DATE || buildProcessStartTime;
+  
+  // Batas bawah untuk random datePublished, diambil dari .env atau buildProcessStartTime
+  // Ini akan menjadi konsisten per build
+  const datePublishedRandomRangeStart = import.meta.env.PUBLIC_SITE_PUBLISHED_DATE || buildProcessStartTime;
 
   const processedVideos: VideoData[] = (rawAllVideos as VideoData[]).map(video => {
     let finalDatePublished = video.datePublished;
     let finalDateModified = video.dateModified;
 
+    // Logika datePublished:
+    // Jika tidak ada di data mentah, HANYA di sini generate secara acak
     if (!finalDatePublished) {
-      finalDatePublished = randomDateBetween(defaultSitePublishedDate, buildProcessStartTime!);
+      finalDatePublished = randomDateBetween(datePublishedRandomRangeStart, buildProcessStartTime!);
     }
 
+    // Logika dateModified: Selalu set ke waktu build yang konsisten
     finalDateModified = buildProcessStartTime!;
 
+    // Logika tags (tetap seperti sebelumnya)
     let finalTags: string | string[];
     if (!video.tags || (Array.isArray(video.tags) && video.tags.length === 0) || (typeof video.tags === 'string' && video.tags.trim() === '')) {
         finalTags = generateTagsFromTitle(video.title, undefined, 3);

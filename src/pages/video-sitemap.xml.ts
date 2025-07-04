@@ -39,7 +39,7 @@ export const GET: APIRoute = async ({ site }) => {
     const duration = video.duration && typeof video.duration === 'number' ? Math.round(video.duration) : 126;
     // --- Gunakan defaultPublishedDate sebagai fallback untuk video.datePublished ---
     const videoPublishedDate = video.datePublished || defaultPublishedDate;
-    const videoModifiedDate = video.dateModified || videoPublishedDate; // dateModified fallback ke datePublished
+    const videoModifiedDate = video.dateModified || new Date().toISOString();
 
     if (video.title && video.description && absoluteThumbnailUrl && absoluteEmbedUrl) {
       let tagsHtml = '';

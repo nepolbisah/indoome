@@ -55,7 +55,7 @@ export const GET: APIRoute = async ({ site }) => {
     // Pastikan kita memiliki thumbnail dan URL halaman video yang valid
     if (absoluteThumbnailUrl && videoDetailUrl) {
       // Dapatkan lastmod dari video, jika ada, atau gunakan timestamp saat ini
-      const videoLastMod = video.dateModified || video.datePublished || currentTimestamp;
+      const videoLastMod = video.dateModified || new Date().toISOString();
 
       imageEntries.push(`
         <url>

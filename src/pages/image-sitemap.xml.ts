@@ -3,26 +3,25 @@ import type { APIRoute } from 'astro';
 import { slugify } from '../utils/slugify';
 import { getAllVideos, type VideoData } from '../utils/data';
 
-// Perluas tipe VideoData untuk menyertakan properti baru
-type VideoDataWithCalculatedLastMod = VideoData & { calculatedLastMod?: string };
+// Perluas tipe VideoData untuk menyertakan properti baru untuk tanggal yang ditentukan
+type VideoDataWithDeterminedDate = VideoData & { videoDeterminedDate?: string };
 
 export const GET: APIRoute = async ({ site }) => {
   if (!site) {
     return new Response('Site URL is not defined in Astro config.', { status: 500 });
   }
 
-  const currentTime = new Date().toISOString();
+  const currentTime = new Date().toISOString(); // Waktu saat ini untuk lastmod (kecuali video)
   const defaultSitePublishedDate = import.meta.env.PUBLIC_SITE_PUBLISHED_DATE || currentTime;
 
-  let allVideos: VideoDataWithCalculatedLastMod[] = [];
+  let allVideos: VideoDataWithDeterminedDate[] = [];
   try {
     allVideos = await getAllVideos();
-    // Hitung dan tambahkan properti 'calculatedLastMod' ke setiap objek video
+    // Hitung dan tambahkan properti 'videoDeterminedDate' ke setiap objek video
     // Penting: Logika ini harus sama persis dengan di sitemap_general.xml.ts
     allVideos = allVideos.map(video => {
-      const videoActualPublishedDate = video.datePublished || defaultSitePublishedDate;
-      const calculatedLastMod = video.dateModified || video.datePublished || randomDateBetween(videoActualPublishedDate, currentTime);
-      return { ...video, calculatedLastMod };
+      const determinedDate = video.datePublished || randomDateBetween(defaultSitePublishedDate, currentTime);
+      return { ...video, videoDeterminedDate: determinedDate };
     });
   } catch (error) {
     console.error("Gagal memuat data video untuk image-sitemap:", error);
@@ -33,13 +32,13 @@ export const GET: APIRoute = async ({ site }) => {
 
   let imageEntries: string[] = [];
 
-  // --- Tambahkan logo situs Anda (lastmod menggunakan defaultSitePublishedDate) ---
-  const logoUrl = `${baseUrl}/logo.png`;
+  // --- Tambahkan logo situs Anda (lastmod menggunakan currentTime) ---
   imageEntries.push(`
     <url>
       <loc>${baseUrl}/</loc>
-      <lastmod>${defaultSitePublishedDate}</lastmod> <image:image>
-        <image:loc>${logoUrl}</image:loc>
+      <lastmod>${currentTime}</lastmod> 
+      <image:image>
+        <image:loc>${baseUrl}/logo.png</image:loc>
         <image:caption>${escapeXml(`Logo ${site.hostname}`)}</image:caption>
         <image:title>${escapeXml(`Logo ${site.hostname}`)}</image:title>
       </image:image>
@@ -47,8 +46,8 @@ export const GET: APIRoute = async ({ site }) => {
   `);
 
   allVideos.forEach(video => {
-    if (!video.id || !video.title || !video.calculatedLastMod) { // Pastikan calculatedLastMod ada
-        console.warn(`Melewatkan video untuk sitemap gambar karena ID, judul, atau calculatedLastMod hilang: ${video.id || 'N/A'}`);
+    if (!video.id || !video.title || !video.videoDeterminedDate) {
+        console.warn(`Melewatkan video untuk sitemap gambar karena ID, judul, atau videoDeterminedDate hilang: ${video.id || 'N/A'}`);
         return;
     }
 
@@ -60,10 +59,12 @@ export const GET: APIRoute = async ({ site }) => {
         : `${baseUrl}${thumbnailUrl}`;
 
     if (absoluteThumbnailUrl && videoDetailUrl) {
+      // lastmod untuk entri gambar video menggunakan videoDeterminedDate
       imageEntries.push(`
         <url>
           <loc>${videoDetailUrl}</loc>
-          <lastmod>${video.calculatedLastMod}</lastmod> <image:image>
+          <lastmod>${video.videoDeterminedDate}</lastmod> 
+          <image:image>
             <image:loc>${absoluteThumbnailUrl}</image:loc>
             <image:caption>${escapeXml(video.description || video.title)}</image:caption>
             <image:title>${escapeXml(video.title)}</image:title>

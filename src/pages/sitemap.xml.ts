@@ -7,7 +7,7 @@ export const GET: APIRoute = async ({ site }) => {
   }
 
   const baseUrl = site.href.endsWith('/') ? site.href.slice(0, -1) : site.href;
-  const lastMod = new Date().toISOString(); // Waktu terakhir modifikasi untuk semua sitemap
+  const lastMod = video.dateModified;
 
   const sitemapIndexContent = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

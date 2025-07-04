@@ -78,8 +78,7 @@ function generateTagsFromTitle(title, currentTags, numberOfTags = 3) {
 
     const commonWords = new Set([
         'dan', 'di', 'yang', 'ini', 'itu', 'dengan', 'dari', 'untuk', 'pada', 'atau',
-        'adalah', 'sebagai', 'tidak', 'saya', 'kami', 'mereka', 'video', 'film', 'movie',
-        'jepang', 'indo', 'bokep'
+        'adalah', 'sebagai', 'tidak', 'saya', 'ke', 'mereka'
     ]);
 
     const cleanedWords = title

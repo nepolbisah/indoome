@@ -3,30 +3,18 @@ import type { APIRoute } from 'astro';
 import { slugify } from '../utils/slugify';
 import { getAllVideos, type VideoData } from '../utils/data';
 
-// Perluas tipe VideoData untuk menyertakan properti baru untuk tanggal yang ditentukan
-type VideoDataWithDeterminedDate = VideoData & { videoDeterminedDate?: string };
-
 export const GET: APIRoute = async ({ site }) => {
   if (!site) {
     return new Response('Site URL is not defined in Astro config.', { status: 500 });
   }
 
-  const currentTime = new Date().toISOString(); // Waktu saat ini untuk lastmod (kecuali video)
-  const defaultSitePublishedDate = import.meta.env.PUBLIC_SITE_PUBLISHED_DATE || currentTime;
+  const currentTime = new Date().toISOString(); // Waktu saat ini, digunakan untuk semua lastmod
 
-  let allVideos: VideoDataWithDeterminedDate[] = [];
+  let allVideos: VideoData[] = [];
   try {
     allVideos = await getAllVideos();
-    // Hitung dan tambahkan properti 'videoDeterminedDate' ke setiap objek video
-    // Ini akan menjadi patokan untuk datePublished DAN lastmod video
-    allVideos = allVideos.map(video => {
-      // Jika video.datePublished ada, gunakan itu. Jika tidak, hasilkan tanggal acak.
-      const determinedDate = video.datePublished || randomDateBetween(defaultSitePublishedDate, currentTime);
-      return { ...video, videoDeterminedDate: determinedDate };
-    });
-
   } catch (error) {
-    console.error("Gagal memuat data video untuk sitemap_general:", error);
+    console.error("Failed to load video data for sitemap_general:", error);
     return new Response('Failed to load video data for general sitemap.', { status: 500 });
   }
   
@@ -34,30 +22,30 @@ export const GET: APIRoute = async ({ site }) => {
 
   let urls: string[] = [];
 
-  // 1. Tambahkan halaman statis utama
-  // Homepage: lastmod menggunakan currentTime
+  // 1. Add main static pages
+  // Homepage: lastmod uses currentTime
   urls.push(`<url><loc>${baseUrl}/</loc><lastmod>${currentTime}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>`);
   
-  // Halaman Kategori Indeks dan Tags Indeks: lastmod menggunakan currentTime
+  // Category Index and Tags Index pages: lastmod uses currentTime
   urls.push(`<url><loc>${baseUrl}/category/</loc><lastmod>${currentTime}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>`);
   urls.push(`<url><loc>${baseUrl}/tags/</loc><lastmod>${currentTime}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>`);
   
-  // 2. Tambahkan URL untuk setiap video
+  // 2. Add URLs for each video detail page
   allVideos.forEach(video => {
-    if (!video.id || !video.title || !video.videoDeterminedDate) {
-        console.warn(`Melewatkan video untuk sitemap_general karena ID, judul, atau videoDeterminedDate hilang: ${video.id || 'N/A'}`);
+    if (!video.id || !video.title) {
+        console.warn(`Skipping video for sitemap_general due to missing ID or title: ${video.id || 'N/A'}`);
         return; 
     }
     const videoDetailUrl = `${baseUrl}/${slugify(video.title)}-${video.id}/`;
-    // lastmod untuk detail video menggunakan videoDeterminedDate
-    urls.push(`<url><loc>${videoDetailUrl}</loc><lastmod>${video.videoDeterminedDate}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>`);
+    // lastmod for video detail pages uses currentTime
+    urls.push(`<url><loc>${videoDetailUrl}</loc><lastmod>${currentTime}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>`);
   });
 
-  // 3. Tambahkan URL untuk setiap halaman kategori spesifik
+  // 3. Add URLs for each specific category page
   const categories = new Set(allVideos.map(video => video.category).filter(Boolean));
   categories.forEach(category => {
     const categorySlug = slugify(category);
-    // lastmod halaman kategori spesifik menggunakan currentTime
+    // lastmod for specific category pages uses currentTime
     urls.push(`<url><loc>${baseUrl}/category/${categorySlug}/1</loc><lastmod>${currentTime}</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>`);
   });
 
@@ -73,13 +61,4 @@ export const GET: APIRoute = async ({ site }) => {
   });
 };
 
-// --- Helper function untuk menghasilkan tanggal acak ---
-function randomDateBetween(start: string, end: string): string {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const startMillis = startDate.getTime();
-    const endMillis = endDate.getTime();
-    if (startMillis > endMillis) { return end; }
-    const randomMillis = startMillis + Math.random() * (endMillis - startMillis);
-    return new Date(randomMillis).toISOString();
-}
+// --- Remove randomDateBetween function ---

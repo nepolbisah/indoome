@@ -4,9 +4,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Hapus import { getAllVideos, slugify } dari sini dulu
-// Kita akan memuat data videos.json dan slugify secara berbeda
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.join(__dirname, '../../');

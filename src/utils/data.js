@@ -2,7 +2,7 @@
 import 'dotenv/config';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } = from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 // Hapus import { getAllVideos, slugify } dari sini dulu
 // Kita akan memuat data videos.json dan slugify secara berbeda

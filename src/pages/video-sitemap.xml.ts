@@ -1,4 +1,3 @@
-// src/pages/video-sitemap.xml.ts
 import type { APIRoute } from 'astro';
 import { slugify } from '../utils/slugify';
 import { getAllVideos, type VideoData } from '../utils/data';
@@ -8,7 +7,6 @@ export const GET: APIRoute = async ({ site }) => {
     return new Response('Site URL is not defined in Astro config.', { status: 500 });
   }
 
-  // --- Ambil PUBLIC_SITE_PUBLISHED_DATE dari environment ---
   const defaultPublishedDate = import.meta.env.PUBLIC_SITE_PUBLISHED_DATE || new Date().toISOString();
 
   let allVideos: VideoData[] = [];
@@ -25,8 +23,8 @@ export const GET: APIRoute = async ({ site }) => {
 
   allVideos.forEach(video => {
     if (!video.id) {
-        console.warn(`Melewatkan video tanpa ID untuk sitemap: ${video.title || 'Unknown Title'}`);
-        return;
+      console.warn(`Melewatkan video tanpa ID untuk sitemap: ${video.title || 'Unknown Title'}`);
+      return;
     }
 
     const videoDetailUrl = `${baseUrl}/video/${video.id}/${slugify(video.title)}`;
@@ -37,9 +35,8 @@ export const GET: APIRoute = async ({ site }) => {
     const absoluteEmbedUrl = embedUrl && (embedUrl.startsWith('http://') || embedUrl.startsWith('https://')) ? embedUrl : `${baseUrl}${embedUrl}`;
 
     const duration = video.duration && typeof video.duration === 'number' ? Math.round(video.duration) : 126;
-    // --- Gunakan defaultPublishedDate sebagai fallback untuk video.datePublished ---
     const videoPublishedDate = video.datePublished || defaultPublishedDate;
-    const videoModifiedDate = video.dateModified || videoPublishedDate; // dateModified fallback ke datePublished
+    const videoModifiedDate = video.dateModified || videoPublishedDate;
 
     if (video.title && video.description && absoluteThumbnailUrl && absoluteEmbedUrl) {
       let tagsHtml = '';
@@ -93,15 +90,25 @@ export const GET: APIRoute = async ({ site }) => {
   });
 };
 
+/**
+ * Meng-escape karakter khusus XML dan membersihkan entitas HTML/XML yang tidak lengkap.
+ *
+ * @param unsafe String yang perlu di-escape.
+ * @returns String yang aman untuk XML.
+ */
 function escapeXml(unsafe: string | null | undefined): string {
   if (!unsafe) return '';
-  return unsafe.replace(/[<>&'"]/g, function (c) {
+
+  let cleaned = unsafe;
+
+  cleaned = cleaned.replace(/&(?!#?\w+;)/g, '&amp;');
+
+  return cleaned.replace(/[<>"']/g, function (c) {
     switch (c) {
       case '<': return '&lt;';
       case '>': return '&gt;';
-      case '&': return '&amp;';
-      case "'": return '&apos;';
       case '"': return '&quot;';
+      case "'": return '&apos;';
       default: return c;
     }
   });

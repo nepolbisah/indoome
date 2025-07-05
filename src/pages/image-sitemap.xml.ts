@@ -1,4 +1,3 @@
-// src/pages/image-sitemap.xml.ts
 import type { APIRoute } from 'astro';
 import { slugify } from '../utils/slugify';
 import { getAllVideos, type VideoData } from '../utils/data';
@@ -8,9 +7,7 @@ export const GET: APIRoute = async ({ site }) => {
     return new Response('Site URL is not defined in Astro config.', { status: 500 });
   }
 
-  // --- Ambil PUBLIC_SITE_PUBLISHED_DATE dari environment ---
   const defaultPublishedDate = import.meta.env.PUBLIC_SITE_PUBLISHED_DATE || new Date().toISOString();
-  // Gunakan ini untuk lastmod jika video tidak memiliki datePublished/dateModified spesifik
 
   let allVideos: VideoData[] = [];
   try {
@@ -24,7 +21,6 @@ export const GET: APIRoute = async ({ site }) => {
 
   let imageEntries: string[] = [];
 
-  // Tambahkan logo situs Anda
   const logoUrl = `${baseUrl}/logo.png`;
   imageEntries.push(`
     <url>
@@ -39,19 +35,18 @@ export const GET: APIRoute = async ({ site }) => {
 
   allVideos.forEach(video => {
     if (!video.id || !video.title) {
-        console.warn(`Melewatkan video untuk sitemap gambar karena ID atau judul hilang: ${video.id || 'N/A'}`);
-        return;
+      console.warn(`Melewatkan video untuk sitemap gambar karena ID atau judul hilang: ${video.id || 'N/A'}`);
+      return;
     }
 
     const videoDetailUrl = `${baseUrl}/video/${video.id}/${slugify(video.title)}`;
     const thumbnailUrl = video.thumbnail;
 
     const absoluteThumbnailUrl = thumbnailUrl && (thumbnailUrl.startsWith('http://') || thumbnailUrl.startsWith('https://'))
-        ? thumbnailUrl
-        : `${baseUrl}${thumbnailUrl}`;
+      ? thumbnailUrl
+      : `${baseUrl}${thumbnailUrl}`;
 
     if (absoluteThumbnailUrl && videoDetailUrl) {
-      // Prioritas: video.dateModified -> video.datePublished -> defaultPublishedDate
       const videoLastMod = video.dateModified || video.datePublished || defaultPublishedDate;
 
       imageEntries.push(`
@@ -66,7 +61,7 @@ export const GET: APIRoute = async ({ site }) => {
         </url>
       `);
     } else {
-        console.warn(`Melewatkan thumbnail video untuk sitemap gambar karena URL tidak valid atau hilang: ID ${video.id}`);
+      console.warn(`Melewatkan thumbnail video untuk sitemap gambar karena URL tidak valid atau hilang: ID ${video.id}`);
     }
   });
 
@@ -83,15 +78,25 @@ export const GET: APIRoute = async ({ site }) => {
   });
 };
 
+/**
+ * Meng-escape karakter khusus XML dan membersihkan entitas HTML/XML yang tidak lengkap.
+ *
+ * @param unsafe String yang perlu di-escape.
+ * @returns String yang aman untuk XML.
+ */
 function escapeXml(unsafe: string | null | undefined): string {
   if (!unsafe) return '';
-  return unsafe.replace(/[<>&'"]/g, function (c) {
+
+  let cleaned = unsafe;
+
+  cleaned = cleaned.replace(/&(?!#?\w+;)/g, '&amp;');
+
+  return cleaned.replace(/[<>"']/g, function (c) {
     switch (c) {
       case '<': return '&lt;';
       case '>': return '&gt;';
-      case '&': return '&amp;';
-      case "'": return '&apos;';
       case '"': return '&quot;';
+      case "'": return '&apos;';
       default: return c;
     }
   });

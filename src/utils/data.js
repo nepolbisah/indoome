@@ -1,14 +1,14 @@
 // src/utils/data.js
 
-// Impor langsung dari file JSON
-import videosData from '../data/videos.json';
+// Impor langsung dari file JSON dengan atribut 'type: json'
+import videosData from '../data/videos.json' assert { type: 'json' };
 
 /**
- * Interface untuk struktur data video.
- * Catatan: Ini hanya untuk tujuan dokumentasi di JavaScript.
- * Jika Anda menggunakan TypeScript di bagian lain proyek Astro,
- * Anda mungkin tetap ingin mempertahankan definisi interface di file .d.ts terpisah
- * atau di bagian lain yang memang menggunakan TypeScript.
+ * Interface for video data structure.
+ * Note: This is for documentation purposes in JavaScript.
+ * If you're using TypeScript in other parts of your Astro project,
+ * you might still want to keep the interface definition in a separate .d.ts file
+ * or in other parts that actually use TypeScript.
  * @typedef {object} VideoData
  * @property {string} id
  * @property {string} title
@@ -25,18 +25,18 @@ import videosData from '../data/videos.json';
  */
 
 /**
- * Mengambil semua data video dari videos.json.
- * @returns {Promise<VideoData[]>} Array dari objek video.
+ * Fetches all video data from videos.json.
+ * @returns {Promise<VideoData[]>} An array of video objects.
  */
 export async function getAllVideos() {
   console.log(`[getAllVideos] Video data loaded. Total videos: ${videosData.length}`);
-  return videosData; // Langsung mengembalikan data yang diimpor
+  return videosData; // Directly return the imported data
 }
 
 /**
- * Mengubah teks menjadi slug yang ramah SEO.
- * @param {string} text - Teks masukan.
- * @returns {string} Slug yang dihasilkan.
+ * Converts text into an SEO-friendly slug.
+ * @param {string} text - The input text.
+ * @returns {string} The generated slug.
  */
 export function slugify(text) {
   return text
@@ -46,6 +46,6 @@ export function slugify(text) {
     .toLowerCase()
     .trim()
     .replace(/\s+/g, '-') // Replace spaces with hyphens
-    .replace(/[^\w-]+/g, '') // Remove all non-word chars
+    .replace(/[^\w-]+/g, '') // Remove all non-word characters
     .replace(/--+/g, '-'); // Replace multiple hyphens with single
 }

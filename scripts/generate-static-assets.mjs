@@ -1,12 +1,12 @@
 // scripts/generate-static-assets.mjs
-import 'dotenv/config'; // Pastikan dotenv dimuat untuk process.env.PUBLIC_SITE_URL
+import 'dotenv/config';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getAllVideos } from '../src/utils/data'
-import { slugify } from '../src/utils/slugify';
 
-// Helper untuk mendapatkan path absolut
+// PERUBAHAN: Impor getAllVideos dan slugify dari satu file data.js
+import { getAllVideos, slugify } from '../src/utils/data.js'; 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.join(__dirname, '../../');
@@ -30,7 +30,6 @@ function escapeXml(unsafe) {
 async function generateStaticAssets() {
     console.log('[Static Asset Generator] Starting generation of sitemaps and robots.txt...');
 
-    // Pastikan PUBLIC_SITE_URL didefinisikan di .env
     const baseUrl = process.env.PUBLIC_SITE_URL;
     if (!baseUrl) {
         console.error("[Static Asset Generator] Error: PUBLIC_SITE_URL is not defined in environment variables. Please set it in your .env file.");
@@ -38,13 +37,18 @@ async function generateStaticAssets() {
     }
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     
-    // Waktu build saat ini, akan digunakan sebagai fallback dan untuk halaman statis
     const currentBuildTime = new Date().toISOString(); 
 
     // --- Generate robots.txt ---
     const robotsContent = `# https://www.robotstxt.org/robotstxt.html
 User-agent: *
+Disallow: /?s=*
+Disallow: /?q=*
+Disallow: /search/*
+
 Allow: /
+Allow: /video/*
+Allow: /category/*
 
 # Sitemaps
 Sitemap: ${cleanBaseUrl}/sitemap.xml
@@ -55,16 +59,7 @@ Sitemap: ${cleanBaseUrl}/video_sitemap.xml
 # Host (optional, but good for Bing)
 Host: ${new URL(cleanBaseUrl).hostname}
 
-Crawl-delay: 10 # Example, adjust as needed
 
-# Block common sensitive paths (adjust as needed for your project)
-Disallow: /admin/
-Disallow: /private/
-Disallow: /temp/
-Disallow: /dashboard/
-Disallow: /login/
-Disallow: /register/
-Disallow: /search
 `;
     await fs.writeFile(path.join(publicDir, 'robots.txt'), robotsContent, 'utf-8');
     console.log('[Static Asset Generator] robots.txt generated.');
@@ -72,11 +67,12 @@ Disallow: /search
     // --- Ambil Data Video ---
     let allVideos = [];
     try {
-        allVideos = await getAllVideos();
+        allVideos = await getAllVideos(); // Menggunakan fungsi dari data.js
         console.log(`[Static Asset Generator] Loaded ${allVideos.length} videos for sitemaps.`);
     } catch (error) {
         console.error("[Static Asset Generator] Failed to load video data for sitemaps:", error);
-        // Lanjutkan saja jika data video gagal dimuat, sitemaps mungkin kosong atau kurang lengkap
+        console.error("Please ensure src/data/videos.json exists and is valid JSON.");
+        process.exit(1);
     }
 
     // --- Generate sitemap.xml (Index Sitemap) ---
@@ -125,7 +121,7 @@ Disallow: /search
             console.warn(`[Sitemap General] Skipping video due to missing ID or title: ${video.id || 'N/A'}`);
             return;
         }
-        const videoDetailUrl = `${cleanBaseUrl}/${slugify(video.title)}-${video.id}/`;
+        const videoDetailUrl = `${cleanBaseUrl}/${slugify(video.title)}-${video.id}/`; // Menggunakan slugify dari data.js
         const videoPageLastMod = video.dateModified || currentBuildTime; 
         generalUrls.push(`<url>
           <loc>${videoDetailUrl}</loc>
@@ -137,7 +133,7 @@ Disallow: /search
     // Specific category pages (assuming page 1)
     const categories = new Set(allVideos.map(video => video.category).filter(Boolean));
     categories.forEach(category => {
-        const categorySlug = slugify(category);
+        const categorySlug = slugify(category); // Menggunakan slugify dari data.js
         generalUrls.push(`<url>
           <loc>${cleanBaseUrl}/category/${categorySlug}/1</loc>
           <lastmod>${currentBuildTime}</lastmod>
@@ -171,7 +167,7 @@ Disallow: /search
             console.warn(`[Image Sitemap] Skipping video due to missing ID or title: ${video.id || 'N/A'}`);
             return;
         }
-        const videoDetailUrl = `${cleanBaseUrl}/${slugify(video.title)}-${video.id}/`;
+        const videoDetailUrl = `${cleanBaseUrl}/${slugify(video.title)}-${video.id}/`; // Menggunakan slugify dari data.js
         const thumbnailUrl = video.thumbnail;
         const absoluteThumbnailUrl = thumbnailUrl && (thumbnailUrl.startsWith('http://') || thumbnailUrl.startsWith('https://'))
             ? thumbnailUrl
@@ -208,7 +204,7 @@ Disallow: /search
             console.warn(`[Video Sitemap] Skipping video due to missing crucial data: ID ${video.id || 'N/A'}`);
             return;
         }
-        const videoDetailUrl = `${cleanBaseUrl}/${slugify(video.title)}-${video.id}/`;
+        const videoDetailUrl = `${cleanBaseUrl}/${slugify(video.title)}-${video.id}/`; // Menggunakan slugify dari data.js
         const absoluteThumbnailUrl = video.thumbnail.startsWith('http') ? video.thumbnail : `${cleanBaseUrl}${video.thumbnail}`;
         const publicationDate = video.datePublished || currentBuildTime;
         const lastModDate = video.dateModified || currentBuildTime;

@@ -3,8 +3,8 @@ import 'dotenv/config'; // Pastikan dotenv dimuat untuk process.env.PUBLIC_SITE_
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getAllVideos } from '../src/utils/data.js'; // Pastikan path ini benar dan ada '.js'
-import { slugify } from '../src/utils/slugify.js'; // Pastikan path ini benar dan ada '.js'
+import { getAllVideos } from '../src/utils/data.ts'
+import { slugify } from '../src/utils/slugify.ts';
 
 // Helper untuk mendapatkan path absolut
 const __filename = fileURLToPath(import.meta.url);

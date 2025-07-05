@@ -1,14 +1,19 @@
 // src/utils/data.js
+import fs from 'node:fs/promises'; // Import Node.js File System module
+import path from 'node:path';     // Import Node.js Path module
+import { fileURLToPath } from 'node:url'; // Import for __dirname equivalent
 
-// Impor langsung dari file JSON dengan atribut 'type: json'
-import videosData from '../data/videos.json' assert { type: 'json' };
+// Helper to get absolute paths relative to this file
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.join(__dirname, '../../'); // Go up to the project root from src/utils
+
+// Path to your videos.json file
+const videosJsonPath = path.join(projectRoot, 'src', 'data', 'videos.json');
 
 /**
  * Interface for video data structure.
  * Note: This is for documentation purposes in JavaScript.
- * If you're using TypeScript in other parts of your Astro project,
- * you might still want to keep the interface definition in a separate .d.ts file
- * or in other parts that actually use TypeScript.
  * @typedef {object} VideoData
  * @property {string} id
  * @property {string} title
@@ -25,18 +30,29 @@ import videosData from '../data/videos.json' assert { type: 'json' };
  */
 
 /**
- * Fetches all video data from videos.json.
- * @returns {Promise<VideoData[]>} An array of video objects.
+ * Mengambil semua data video dari videos.json.
+ * Membaca file JSON secara langsung dari sistem file.
+ * @returns {Promise<VideoData[]>} Array dari objek video.
  */
 export async function getAllVideos() {
-  console.log(`[getAllVideos] Video data loaded. Total videos: ${videosData.length}`);
-  return videosData; // Directly return the imported data
+  try {
+    // Read the JSON file content
+    const videosRawData = await fs.readFile(videosJsonPath, 'utf-8');
+    // Parse the JSON content
+    const videosData = JSON.parse(videosRawData);
+    console.log(`[getAllVideos] Video data loaded. Total videos: ${videosData.length}`);
+    return videosData;
+  } catch (error) {
+    console.error(`[getAllVideos] Error loading videos.json from ${videosJsonPath}:`, error);
+    // You might want to throw the error or return an empty array, depending on how critical this data is.
+    throw new Error('Failed to load video data.');
+  }
 }
 
 /**
- * Converts text into an SEO-friendly slug.
- * @param {string} text - The input text.
- * @returns {string} The generated slug.
+ * Mengubah teks menjadi slug yang ramah SEO.
+ * @param {string} text - Teks masukan.
+ * @returns {string} Slug yang dihasilkan.
  */
 export function slugify(text) {
   return text

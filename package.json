@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node scripts/generate-indexnow-key.js && node src/utils/processThumbnails.mjs && node scripts/generate-favicons.js && astro dev",
     "start": "node scripts/generate-indexnow-key.js && node src/utils/processThumbnails.mjs && node scripts/generate-favicons.js && astro dev",
-    "build": "node scripts/generate-indexnow-key.js && node src/utils/processThumbnails.mjs && node scripts/generate-favicons.js && astro build && node ./scripts/notify-indexnow.js",
+    "build": "node scripts/generate-indexnow-key.js && node src/utils/processThumbnails.mjs && node scripts/generate-favicons.js && node scripts/generate-static-assets.mjs && astro build && node ./scripts/notify-indexnow.js",
     "preview": "astro preview",
     "generate-favicons": "node scripts/generate-favicons.js",
     "generate-indexnow-key": "node scripts/generate-indexnow-key.js",
